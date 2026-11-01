@@ -1,0 +1,6 @@
+.DS_Store
+data/IPL.csv
+data/deliveries.csv
+__pycache__/
+.DS_Store
+.venv/

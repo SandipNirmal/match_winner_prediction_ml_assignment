@@ -124,4 +124,4 @@ In the app, choose a saved classifier and upload `data/test_data.csv`. The app d
 
 ## Streamlit application
 
-- Pending deployment to Streamlit Community Cloud
+- Streamlit Community Cloud hosted at -> https://2026ak05319-sandip-ml.streamlit.app/

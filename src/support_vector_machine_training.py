@@ -1,22 +1,29 @@
-"""Train and evaluate the first classifier: Logistic Regression."""
+"""This is Support Vector Machine on IPL data"""
 
 from pathlib import Path
 
 import joblib
 import pandas as pd
+from sklearn.calibration import CalibratedClassifierCV
 from sklearn.compose import ColumnTransformer
-from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import accuracy_score, f1_score, matthews_corrcoef, precision_score, recall_score, roc_auc_score
-from sklearn.pipeline import Pipeline
 from sklearn.impute import SimpleImputer
+from sklearn.metrics import (
+    accuracy_score,
+    f1_score,
+    matthews_corrcoef,
+    precision_score,
+    recall_score,
+    roc_auc_score,
+)
+from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
-
+from sklearn.svm import SVC
 
 PROJECT_DIR = Path(__file__).resolve().parents[1]
 TRAIN_DATA_PATH = PROJECT_DIR / "data" / "train_data.csv"
 TEST_DATA_PATH = PROJECT_DIR / "data" / "test_data.csv"
-MODEL_PATH = PROJECT_DIR / "models" / "logistic_regression.joblib"
-METRICS_PATH = PROJECT_DIR / "reports" / "logistic_regression_metrics.csv"
+MODEL_PATH = PROJECT_DIR / "models" / "support_vector_machine.joblib"
+METRICS_PATH = PROJECT_DIR / "reports" / "support_vector_machine_metrics.csv"
 
 TARGET_COLUMN = "team1_won"
 
@@ -34,7 +41,7 @@ FEATURE_COLUMNS = CATEGORICAL_FEATURES + NUMERIC_FEATURES
 
 
 def create_model_pipeline() -> Pipeline:
-    """Create preprocessing and Logistic Regression as one reusable pipeline."""
+    """Create reusable pipeline for Support Vector Machine"""
     preprocess_features = ColumnTransformer(
         transformers=[
             (
@@ -60,7 +67,17 @@ def create_model_pipeline() -> Pipeline:
         ]
     )
 
-    classifier = LogisticRegression(max_iter=2_000, class_weight="balanced", random_state=42)
+    base_svm = SVC(
+        kernel="rbf",
+        class_weight="balanced",
+    )
+
+    classifier = CalibratedClassifierCV(
+        estimator=base_svm,
+        cv=5,
+        ensemble=False,
+    )
+
     return Pipeline(
         steps=[
             ("preprocess", preprocess_features),
@@ -69,8 +86,10 @@ def create_model_pipeline() -> Pipeline:
     )
 
 
-def calculate_metrics(actual_values: pd.Series, predictions: pd.Series, probabilities: pd.Series) -> dict:
-    """Calculate every metric required by the assignment."""
+def calculate_metrics(
+    actual_values: pd.Series, predictions: pd.Series, probabilities: pd.Series
+) -> dict:
+    """Calculate all required metrics"""
     return {
         "accuracy": accuracy_score(actual_values, predictions),
         "auc": roc_auc_score(actual_values, probabilities),
@@ -82,7 +101,7 @@ def calculate_metrics(actual_values: pd.Series, predictions: pd.Series, probabil
 
 
 def main() -> None:
-    """Fit the model, print its metrics, and save it for the Streamlit app."""
+    """Fit the model, print metrics and save for Streamlit app"""
     train_data = pd.read_csv(TRAIN_DATA_PATH)
     test_data = pd.read_csv(TEST_DATA_PATH)
 
@@ -91,16 +110,21 @@ def main() -> None:
 
     predictions = model.predict(test_data[FEATURE_COLUMNS])
     win_probabilities = model.predict_proba(test_data[FEATURE_COLUMNS])[:, 1]
-    metrics = calculate_metrics(test_data[TARGET_COLUMN], predictions, win_probabilities)
+    metrics = calculate_metrics(
+        test_data[TARGET_COLUMN], predictions, win_probabilities
+    )
 
     MODEL_PATH.parent.mkdir(parents=True, exist_ok=True)
     joblib.dump(model, MODEL_PATH)
+
+    METRICS_PATH.parent.mkdir(parents=True, exist_ok=True)
     pd.DataFrame([metrics]).to_csv(METRICS_PATH, index=False)
 
-    print("Logistic Regression metrics")
+    print("Support Vector Machine (SVM) metrics")
     for metric_name, metric_value in metrics.items():
-        print(f"{metric_name}: {metric_value:.4f}")
+        print(f"{metric_name}: {metric_value: .4f}")
     print(f"Saved model to: {MODEL_PATH}")
+    print(pd.Series(predictions).value_counts())
 
 
 if __name__ == "__main__":
